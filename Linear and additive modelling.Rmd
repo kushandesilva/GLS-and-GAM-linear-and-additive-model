@@ -1,0 +1,360 @@
+---
+title: "Linear and Additive Modelling"
+author: "Kushan De Silva"
+date: "May 22, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+Seals <- read.table(file = "Seals.txt", header = TRUE)
+hist(Seals$Abun)
+
+A <- Seals[,1]
+hist(A)
+
+lm(Abun ~ factor(Site), data = Seals)
+
+Nereis <- read.table(file = "Nereis.txt", header = TRUE)
+dotchart(Nereis$concentration, 
+         ylab = "Order of observations",
+         xlab = "Concentration", main = "Cleveland dotplot")
+
+dotchart(Nereis$concentration, ylab = "Order of \ observations",
+xlab =" \ Concentration", main = "Cleveland dotplot")
+
+dotchart(Nereis$concentration, groups = factor(Nereis$nutrient),
+         ylab = "Nutrient", xlab = "Concentration",
+         main = "Cleveland dotplot", pch = Nereis$nutrient)
+
+pairs(Nereis)
+
+boxplot(concentration ??? factor(nutrient), 
+        varwidth = TRUE, xlab = "nutrient",
+main = "Boxplot of concentration conditional on\
+nutrient", ylab = "concentration", data = Nereis)
+
+TeethNitrogen <- read.table(file = "TeethNitrogen.txt", header = TRUE)
+library(lattice)
+xyplot(X15N ~ Age | factor(Tooth), type = "l",
+xlab = "Estimated age", col = 1,
+ylab = expression(paste(delta^{15}, "N")),
+strip = function(bg = 'white', ...)
+strip.default(bg = 'white', ...),
+data = TeethNitrogen)
+
+Clams <- read.table(file = "Clams.txt", header = TRUE)
+Clams$LNAFD <- log(Clams$AFD)
+Clams$LNLENGTH <- log(Clams$LENGTH)
+Clams$fMONTH <- factor(Clams$MONTH)
+library(lattice)
+coplot(LNAFD ~ LNLENGTH | fMONTH, data = Clams)
+M1 <- lm(LNAFD ~ LNLENGTH * fMONTH, data = Clams)
+drop1(M1,test = "F")
+
+op <- par(mfrow = c(2, 2), mar = c(5, 4, 1, 2))
+plot(M1, add.smooth = FALSE, which = 1)
+E <- resid(M1)
+hist(E, xlab = "Residuals", main = "")
+plot(Clams$LNLENGTH, E, xlab = "Log(Length)", ylab = "Residuals")
+plot(Clams$fMONTH, E, xlab = "Month", ylab = "Residuals")
+par(op)
+
+E1 <- E[Clams$LNLENGTH <= 2.75]
+E2 <- E[Clams$LNLENGTH > 2.75]
+var.test(E1, E2)
+
+bartlett.test(E, Clams$fMONTH)
+
+TN <- TeethNitrogen
+M2 <- lm(X15N ~ Age, subset = (TN$Tooth == "Moby"), data = TN)
+op <- par(mfrow = c(2, 2))
+plot(M2, add.smooth = FALSE)
+par(op)
+
+
+N.Moby <- TN$X15N[TN$Tooth == "Moby"]
+Age.Moby <- TN$Age[TN$Tooth == "Moby"]
+
+plot(y = N.Moby, x = Age.Moby, xlab = "Estimated age Moby",
+     ylab = expression(paste(delta^{15}, "N Moby")))
+abline(M2)
+
+summary(M2)
+
+Nereis$fbiomass <- factor(Nereis$biomass)
+Nereis$fnutrient <- factor(Nereis$nutrient)
+M3 <- lm(concentration ~ fbiomass * fnutrient, data = Nereis)
+drop1(M3, test = "F")
+op <- par(mfrow = c(1, 2))
+plot(resid(M3) ~ Nereis$fbiomass, xlab = "Biomass", ylab = "Residuals")
+plot(resid(M3) ~ Nereis$fnutrient, xlab = "Nutrient", ylab = "Residuals")
+par(op)
+
+ISIT <- read.table(file = "ISIT.txt", header = TRUE)
+ISIT$fStation <- factor(ISIT$Station)
+library(lattice)
+xyplot(Sources ~ SampleDepth | fStation, data = ISIT, 
+       xlab = "Sample Depth", ylab = "Sources",
+       strip = function(bg = 'white', ...)
+         strip.default(bg = 'white', ...),
+       panel = function(x, y) {
+         panel.grid(h = -1, v = 2)
+I1 <- order(x)
+llines(x[I1], y[I1], col = 1)})
+
+op <- par(mfrow = c(2, 2), mar = c(5, 4, 1, 2))
+Sources16 <- ISIT$Sources[ISIT$Station == 16]
+Depth16 <- ISIT$SampleDepth[ISIT$Station == 16]
+plot(Depth16, Sources16, type = "p")
+
+library(gam)
+M1 <- gam(Sources16 ~ lo(Depth16, span = 0.5))
+plot(M1, se = TRUE)
+
+M2 <- predict(M2, se = TRUE)
+plot(Depth16, Sources16, type = "p")
+I1 <- order(Depth16)
+lines(Depth16[I1], M2$fit[I1], lty = 1)
+lines(Depth16[I1], M2$fit[I1] + 2 * M2$se[I1], lty = 2)
+lines(Depth16[I1], M2$fit[I1] - 2 * M2$se[I1], lty = 2)
+par(op)
+
+detach("package:gam")
+library(mgcv)
+op <- par(mfrow = c(2, 2), mar = c(5, 4, 1, 2))
+Sources16 <- ISIT$Sources[ISIT$Station == 16]
+Depth16 <- ISIT$SampleDepth[ISIT$Station == 16]
+plot(Depth16, Sources16, type = "p")
+M3 <- gam(Sources16 ~ s(Depth16, fx = FALSE, k=-1, bs = "cr"))
+plot(M3, se = TRUE)
+M3pred <- predict(M3, se = TRUE, type = "response")
+plot(Depth16, Sources16, type = "p")
+I1 <- order(Depth16)
+lines(Depth16[I1], M3pred$fit[I1], lty=1)
+lines(Depth16[I1], M3pred$fit[I1]+2*M3pred$se[I1],lty=2)
+lines(Depth16[I1], M3pred$fit[I1]-2*M3pred$se[I1],lty=2)
+
+S8 <- ISIT$Sources[ISIT$Station == 8]
+D8 <- ISIT$SampleDepth[ISIT$Station == 8]
+S13 <- ISIT$Sources[ISIT$Station == 13]
+D13 <- ISIT$SampleDepth[ISIT$Station == 13]
+So <- c(S8, S13); De <- c(D8, D13)
+ID <- rep(c(8, 13), c(length(S8), length(S13)))
+mi <- max(min(D8), min(D13))
+ma <- min(max(D8), max(D13))
+I1 <- De > mi & De < ma
+op <- par(mfrow = c(1, 2))
+plot(D8[I1], S8[I1], pch = 16, xlab = "Depth",
+ylab = "Sources", col = 1, main = "Station 8",
+xlim = c(500, 3000), ylim = c(0, 40))
+plot(D13[I1], S13[I1], pch = 16, xlab = "Depth",
+ylab = "Sources", col = 1, main = "Station 13",
+xlim = c(500, 3000), ylim = c(0, 40))
+par(op)
+
+library(mgcv)
+M4 <- gam(So ~ s(De) + factor(ID), subset = I1)
+summary(M4)
+anova(M4)
+
+M5<-gam(So ~ s(De)+
+s(De, by = as.numeric(ID == 13)) +
+factor(ID), subset = I1)
+anova(M5)
+
+anova(M4, M5, test = "F")
+
+M6 <- gam(So ~ s(De, by = as.numeric(ID == 8)) +
+s(De, by = as.numeric(ID == 13)) +
+factor(ID), subset = I1)
+
+Vegetation <- read.table(file = "Vegetation.txt", header = TRUE)
+library(mgcv)
+M7 <- gam(Richness ~ s(ROCK, bs = "cs") +
+s(LITTER, bs = "cs") + s(BARESOIL, bs = "cs") +
+s(FallPrec, bs = "cs") + s(SprTmax, bs = "cs"), data = Vegetation)
+anova(M7)
+
+Squid <- read.table(file = "Squid.txt", header = TRUE)
+Squid$fMONTH <- factor(Squid$MONTH)
+M1 <- lm(Testisweight ~ DML * fMONTH, data = Squid)
+op <- par(mfrow = c(2, 2), mar = c(4, 4, 2, 2))
+plot(M1, which = c(1), col = 1, add.smooth = FALSE, caption = "")
+plot(Squid$fMONTH, resid(M1), xlab = "Month", ylab = "Residuals")
+plot(Squid$DML, resid(M1), xlab = "DML", ylab = "Residuals")
+par(op)
+
+library(nlme)
+M.lm <- gls(Testisweight ~ DML * fMONTH, data=Squid)
+vf1Fixed <- varFixed(~DML)
+M.gls1 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf1Fixed, data = Squid)
+anova(M.lm, M.gls1)
+
+vf2 <- varIdent(form= ~ 1 | fMONTH)
+M.gls2 <- gls(Testisweight ~ DML*fMONTH, data =Squid, weights = vf2)
+anova(M.lm, M.gls1, M.gls2)
+anova(M.lm, M.gls2)
+summary(M.gls2)
+
+plot(M.lm,which = c(1), col = Squid$MONTH, add.smooth = FALSE, caption = "")
+
+
+E <- resid(M.lm)
+coplot(E ~ DML | fMONTH, data = Squid)
+
+vf3 <- varPower(form =~ DML)
+M.gls3 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf3, data = Squid)
+
+vf4 <- varPower(form =~ DML | fMONTH)
+M.gls4 <- gls(Testisweight ~ DML * fMONTH,
+data = Squid, weights = vf4)
+
+vf5 <- varExp(form =~ DML)
+M.gls5 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf5, data = Squid)
+
+vf6 <- varConstPower(form =~ DML)
+M.gls6 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf6, data = Squid)
+
+vf7 <- varConstPower(form =~ DML | fMONTH)
+M.gls7 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf7, data = Squid)
+
+vf8 <- varComb(varIdent(form =~ 1 | fMONTH) ,
+varExp(form =~ DML) )
+M.gls8 <- gls(Testisweight ~ DML * fMONTH,
+weights = vf8, data = Squid)
+
+anova(M.lm, M.gls1, M.gls2, M.gls3, M.gls4, M.gls5, M.gls6, M.gls7, M.gls8)
+AIC(M.lm, M.gls1, M.gls2, M.gls3, M.gls4, M.gls5, M.gls6, M.gls7, M.gls8)
+
+anova (M.lm, M.gls4)
+
+E1 <- resid(M.gls4)
+coplot(E1 ~ DML | fMONTH,
+ylab = "Ordinary residuals", data = Squid)
+
+E2 <- resid(M.gls4, type = "normalized")
+coplot(E2 ~ DML | fMONTH, data = Squid, ylab = "Normalised residuals")
+
+Biodiversity <- read.table("Biodiversity.txt", header = T)
+Biodiv <- Biodiversity
+Biodiv$fTreatment <- factor(Biodiv$Treatment)
+Biodiv$fNutrient <- factor(Biodiv$Nutrient)
+boxplot(Concentration ~ fTreatment * fNutrient, data = Biodiv)
+M0 <- lm(Concentration ~ Biomass * fTreatment * fNutrient, data = Biodiv)
+plot(M0, which = c(1), add.smooth = FALSE)
+
+library(nlme)
+f1 <- formula(Concentration ~ Biomass * fTreatment * fNutrient)
+M0 <- gls(f1, data = Biodiv)
+M1A <-gls(f1, data = Biodiv, weights = varIdent( form =~ 1 | fTreatment * fNutrient))
+M1B <-gls(f1, data = Biodiv, weights = varIdent(form =~ 1 | fNutrient))
+M1C <-gls(f1, data = Biodiv, weights = varIdent(form =~ 1 | fTreatment))
+anova(M0, M1A, M1B, M1C)
+
+anova(M1A)
+
+M2A1 <- gls(Concentration ~ Biomass + fTreatment + fNutrient + Biomass:fTreatment + Biomass:fNutrient + fTreatment:fNutrient + Biomass:fTreatment:fNutrient, weights = varIdent(form =~ 1 | fTreatment * fNutrient), method = "ML", data = Biodiv)
+
+M2A2 <- gls(Concentration ~ Biomass + fTreatment + Nutrient + Biomass:fTreatment + Biomass:fNutrient + fTreatment:fNutrient, weights=varIdent(form =~ 1 | fTreatment * fNutrient), method = "ML", data = Biodiv)
+
+anova (M2A1, M2A2)
+
+
+vfOptim <- varIdent(form =~ 1 | fTreatment*fNutrient)
+#Assess significance of all 3 2-way interactions
+#Full model
+M3.Full <- gls(Concentration ~ Biomass + fTreatment + fNutrient + Biomass:fTreatment + Biomass:fNutrient + fTreatment:fNutrient, weights = vfOptim, method = "ML", data = Biodiv)
+
+#Drop Biomass:fTreatment
+M3.Drop1 <- gls(Concentration~Biomass + fTreatment + fNutrient + Biomass:fNutrient + fTreatment:fNutrient, weights = vfOptim,method = "ML", data = Biodiv)
+anova(M3.Full, M3.Drop1)
+
+#Drop Biomass:fNutrient
+M3.Drop2 <- gls(Concentration ~ Biomass + fTreatment + fNutrient + Biomass:fTreatment + fTreatment:fNutrient, weights = vfOptim, method = "ML", data = Biodiv)
+anova(M3.Full, M3.Drop2)
+
+#Drop fTreatment:fNutrient
+M3.Drop3 <- gls(Concentration ~ Biomass + fTreatment + fNutrient + Biomass:fTreatment + Biomass:fNutrient, weights = vfOptim, method = "ML", data = Biodiv)
+anova(M3.Full, M3.Drop3)
+
+#Alternative coding with same results
+fFull <- formula(Concentration~Biomass + fTreatment + fNutrient + Biomass:fTreatment +
+Biomass:fNutrient + fTreatment:fNutrient)
+M3.Full <- gls(fFull, weights = vfOptim, method = "ML", data = Biodiv)
+#Drop Biomass:fTreatment
+M3.Drop1<-update(M3.Full, .~. - Biomass:fTreatment)
+anova(M3.Full, M3.Drop1)
+
+#Drop Biomass:fNutrient
+M3.Drop2 <- update(M3.Full, .~. - Biomass:fNutrient)
+anova(M3.Full, M3.Drop2)
+#Drop fTreatment:fNutrient
+M3.Drop3<-update(M3.Full, .~. - fTreatment:fNutrient)
+anova(M3.Full,M3.Drop3)
+
+#New full model
+M4.Full <- gls(Concentration~Biomass + fTreatment + fNutrient +
+Biomass:fNutrient + fTreatment:fNutrient,
+weights = vfOptim,
+method = "ML", data = Biodiv)
+
+#Drop Biomass:fNutrient
+M4.Drop1 <- update(M4.Full, .~. -Biomass:fNutrient)
+anova(M4.Full, M4.Drop1)
+#Drop fTreatment:fNutrient
+M4.Drop2<-update(M4.Full, .~. -fTreatment:fNutrient)
+anova(M4.Full, M4.Drop2)
+
+#New full model
+M5.Full <- gls(Concentration ~
+Biomass + fTreatment + fNutrient +
+fTreatment:fNutrient,
+weights = vfOptim, method = "ML",
+data = Biodiv)
+
+#Drop fTreatment:fNutrient
+M5.Drop1 <-update(M5.Full, .~.-fTreatment:fNutrient)
+anova(M5.Full, M5.Drop1)
+
+M5.Drop2 <- update(M5.Full, .~. -Biomass)
+anova(M5.Full, M5.Drop2)
+
+M6.Full<-gls(Concentration ~ fTreatment + fNutrient+
+fTreatment:fNutrient,
+weights = vfOptim, method = "ML",
+data = Biodiv)
+
+M6.Drop2<-update(M6.Full, .~. -fTreatment:fNutrient)
+anova(M6.Full, M6.Drop2)
+
+MFinal <- gls(Concentration ~ fTreatment * fNutrient,
+weights = vfOptim, method = "REML", data = Biodiv)
+E <- resid(MFinal, type = "normalized")
+Fit <- fitted(MFinal)
+op <- par(mfrow = c(1, 2))
+plot(x = Fit, y = E,
+xlab = "Fitted values", ylab = "Residuals",
+main = "Residuals versus fitted values")
+identify(Fit, E)
+hist(E, nclass = 15)
+par(op)
+
+
+summary(MFinal)
+
+boxplot(predict(MFinal) ~ fTreatment * fNutrient, data = Biodiv)
+
+
+```
+
+
+
